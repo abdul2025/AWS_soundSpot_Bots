@@ -26,19 +26,20 @@ def connectionDB():
     base = declarative_base()
 
     class soundspotEmails(base):
-        __tablename__ = 'soundspotEmails'
+        __tablename__ = 'SoundSpotUsers'
 
         id = Column(Integer, primary_key=True, autoincrement=True)
         cdt = Column(DateTime, default=datetime.datetime.now())
         Email = Column(String, nullable=False)
         Password = Column(String, nullable=False)
+        FireBaseUID = Column(String, nullable=True)
         uuid = Column(String, nullable=False)
         EmailStatus = Column(Integer, nullable=True, default=0)
 
         __table_args__ = (UniqueConstraint('Email', name='Email',), )
 
     insp = inspect(engine)
-    if not insp.has_table('soundspotEmails', schema=None):
+    if not insp.has_table('SoundSpotUsers', schema=None):
         base.metadata.create_all(engine)
 
     Session = sessionmaker(engine, autoflush=False)  
