@@ -62,14 +62,15 @@ def firebaseCreateUser(email, password):
 
         response = requests.post(url, data=data_json, headers=headers)
         res = json.loads(response.text)
+        # print(res['error']['code'])
         if response.status_code != 200:
             return res['error']['message']
-        if res['kind']:
-            return 
-
+        if res['localId']:
+            return [res['localId']]
+        
     except Exception as er:
         return er
-
+print(firebaseCreateUser('abduslf.2020alsh@gmail.com', '123123'))
 
 def main(token):
     soundspotEmails, session = connectionDB()
@@ -80,20 +81,28 @@ def main(token):
                         )).first()
     if user != None:
         print('updating')
-        firebaseCreateUser(user.Email, user.Password)
-        user.EmailStatus = 1
-        
+        message = firebaseCreateUser(user.Email, user.Password)
+        if type(message) == str:
+            return message
+        else:
+            user.EmailStatus = 1
+            user.FireBaseUID = message[0]
+            message = 'Verified Successfully, Please login'
 
     else:
         # record already exists 
-        return 'Records Already Updated'
+        message = 'User Already Verified, Please login'
 
 
     
 
     session.commit()
     session.close()
-    return 'User Created Successfully'
+    return message
+
+
+    
+
 
 
 
