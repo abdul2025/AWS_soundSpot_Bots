@@ -9,14 +9,16 @@ from sqlalchemy.sql.schema import UniqueConstraint
 import datetime
 import psycopg2
 import json
+import requests
 import os
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 
+
 def connectionDB():
     
-    db_string = os.getenv('DB_PASS')
+    db_string =  os.getenv('DB_PASS')
 
     engine = create_engine(db_string) 
 
@@ -29,6 +31,7 @@ def connectionDB():
         id = Column(Integer, primary_key=True, autoincrement=True)
         cdt = Column(DateTime, default=datetime.datetime.now())
         Email = Column(String, nullable=False)
+        Password = Column(String, nullable=False)
         uuid = Column(String, nullable=False)
         EmailStatus = Column(Integer, nullable=True, default=0)
 
@@ -45,34 +48,51 @@ def connectionDB():
     return [soundspotEmails, session]
 
 
+def firebaseCreateUser(email, password):
+    try:
+        data = {
+            "email": email,
+            "password": password,
+            "returnSecureToken": True
+        }
+        url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + os.getenv('FIREBASE_KEY')
+        data_json = json.dumps(data)
+        headers = {'Content-type': 'application/json'}
+
+        response = requests.post(url, data=data_json, headers=headers)
+        res = json.loads(response.text)
+        if response.status_code != 200:
+            return res['error']['message']
+        if res['kind']:
+            return 
+
+    except Exception as er:
+        return er
 
 
-def main(email = 'wahbi.jed.2013@gmail.com', uuid = 'd71e5924-e7d1-4634-a03d-28e96056a083'):
+def main(token):
     soundspotEmails, session = connectionDB()
     # check if the records has passed 24 hours
     user = session.query(soundspotEmails).filter(and_(
-                        soundspotEmails.Email == str(email),
                         soundspotEmails.EmailStatus == 0,
-                        soundspotEmails.uuid == uuid,
+                        soundspotEmails.uuid == token,
                         )).first()
-
     if user != None:
         print('updating')
+        firebaseCreateUser(user.Email, user.Password)
         user.EmailStatus = 1
+        
+
     else:
         # record already exists 
-        print('records already updated')
-        return 0
+        return 'Records Already Updated'
 
 
     
 
     session.commit()
     session.close()
-
-    return 1
-
-main()
+    return 'User Created Successfully'
 
 
 

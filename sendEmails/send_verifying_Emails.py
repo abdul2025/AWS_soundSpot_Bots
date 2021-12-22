@@ -25,34 +25,41 @@ load_dotenv(find_dotenv())
 
 
 def connectionDB():
-    
-    db_string = os.getenv('DB_PASS')
-
-    engine = create_engine(db_string) 
+    try:
+        db_string = os.getenv('DB_PASS')
 
     
-    base = declarative_base()
+        engine = create_engine(db_string) 
+    
+        
+        base = declarative_base()
+    
+        class soundspotEmails(base):
+            __tablename__ = 'SoundSpotUsers'
+    
+            id = Column(Integer, primary_key=True, autoincrement=True)
+            cdt = Column(DateTime, default=datetime.datetime.now())
+            Email = Column(String, nullable=False)
+            Password = Column(String, nullable=False)
+            FireBaseUID = Column(String, nullable=True)
+            uuid = Column(String, nullable=False)
+            EmailStatus = Column(Integer, nullable=True, default=0)
+    
+            __table_args__ = (UniqueConstraint('Email', name='Email',), )
+    
+        insp = inspect(engine)
+        if not insp.has_table('SoundSpotUsers', schema=None):
+            base.metadata.create_all(engine)
+    
+        Session = sessionmaker(engine, autoflush=False)  
+        session = Session()
+        print('DB connection Done !!!')
+    
+        return [soundspotEmails, session]
+    except Exception as er:
+        return 'something wrong occured db'
 
-    class soundspotEmails(base):
-        __tablename__ = 'soundspotEmails'
 
-        id = Column(Integer, primary_key=True, autoincrement=True)
-        cdt = Column(DateTime, default=datetime.datetime.now())
-        Email = Column(String, nullable=False)
-        uuid = Column(String, nullable=False)
-        EmailStatus = Column(Integer, nullable=True, default=0)
-
-        __table_args__ = (UniqueConstraint('Email', name='Email',), )
-
-    insp = inspect(engine)
-    if not insp.has_table('soundspotEmails', schema=None):
-        base.metadata.create_all(engine)
-
-    Session = sessionmaker(engine, autoflush=False)  
-    session = Session()
-    print('DB connection Done !!!')
-
-    return [soundspotEmails, session]
 
 def sendEmails(ToEmail, token):
     try:
@@ -63,8 +70,8 @@ def sendEmails(ToEmail, token):
         msg['To'] = ToEmail
 
 
-        html = open("email.html", encoding="utf8")
-        html2 = html.read().replace("{{Name}}", str('Listener')).replace("{{token}}", str(token))
+        with open("email.html", "r", encoding='utf-8') as html:
+            html2 = html.read().replace("{{Name}}", str('Listener')).replace("{{token}}", str(token))
 
         
         msg.attach(MIMEText(html2, 'html', "utf-8"))
@@ -80,8 +87,6 @@ def sendEmails(ToEmail, token):
         print(er)
         return False
 
-# sendEmails()
-
 def emailExistence(email,soundspotEmails, session):
     email = session.query(soundspotEmails).filter(and_(
                             soundspotEmails.Email == str(email),
@@ -90,17 +95,20 @@ def emailExistence(email,soundspotEmails, session):
     return True if email != None else False
 
 
-def insertRecoards(email, uuid, session,soundspotEmails):
+def insertRecoards(email, passowrd, uuid, session,soundspotEmails):
     try:
         record = soundspotEmails(
                     Email = email,
+                    Password = passowrd,
                     uuid = uuid,
                     )
         session.add(record)
+        # session.commit()
+        session.close()
     except Exception as er:
         print(er)
 
-def main(email):
+def main(email, passowrd):
     soundspotEmails, session = connectionDB()
     
     uuid = uuid4()
@@ -108,18 +116,17 @@ def main(email):
         print('send email and insert')
         if sendEmails(email, uuid):
             print('inserting')
-            insertRecoards(email, uuid, session, soundspotEmails)
+            insertRecoards(email, passowrd, uuid, session, soundspotEmails)
+            return ' Verification email is sent, please verify your Email'
+        else:
+            return 'Some worng occured while sending the email, Please make sure you provide right email'
+            
     else:
         # Email already exists 
         print('email already exists')
+        return "Email Already Created"
 
 
     
-
-    session.commit()
-    session.close()
-
-main('wahbi.jed.2013@gmail.com')
-
 
 
